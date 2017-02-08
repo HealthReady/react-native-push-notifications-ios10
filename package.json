@@ -15,5 +15,8 @@
   "bugs": {
     "url": "https://github.com/HealthReady/react-native-push-notifications-ios10/issues"
   },
-  "homepage": "https://github.com/HealthReady/react-native-push-notifications-ios10#readme"
+  "homepage": "https://github.com/HealthReady/react-native-push-notifications-ios10#readme",
+  "peerDependencies": {
+    "react-native": ">=0.36.0"
+  }
 }
