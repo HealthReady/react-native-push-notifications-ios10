@@ -1,0 +1,19 @@
+{
+  "name": "react-native-push-notifications-ios10",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/HealthReady/react-native-push-notifications-ios10.git"
+  },
+  "author": "HealthReady",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/HealthReady/react-native-push-notifications-ios10/issues"
+  },
+  "homepage": "https://github.com/HealthReady/react-native-push-notifications-ios10#readme"
+}
