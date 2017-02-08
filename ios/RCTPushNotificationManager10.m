@@ -12,14 +12,14 @@
 #import "RCTEventDispatcher.h"
 #import "RCTUtils.h"
 
-NSString *const RCTLocalNotificationReceived = @"LocalNotificationReceived";
-NSString *const RCTNotificationResponseReceived = @"NotificationResponseReceived";
-NSString *const RCTRemoteNotificationReceived = @"RemoteNotificationReceived";
-NSString *const RCTRemoteNotificationsRegistered = @"RemoteNotificationsRegistered";
-NSString *const RCTRegisterUserNotificationSettings = @"RegisterUserNotificationSettings";
+NSString *const RCTLocalNotificationReceived10 = @"LocalNotificationReceived";
+NSString *const RCTNotificationResponseReceived10 = @"NotificationResponseReceived";
+NSString *const RCTRemoteNotificationReceived10 = @"RemoteNotificationReceived";
+NSString *const RCTRemoteNotificationsRegistered10 = @"RemoteNotificationsRegistered";
+NSString *const RCTRegisterUserNotificationSettings10 = @"RegisterUserNotificationSettings";
 
-NSString *const RCTErrorUnableToRequestPermissions = @"E_UNABLE_TO_REQUEST_PERMISSIONS";
-NSString *const RCTErrorRemoteNotificationRegistrationFailed = @"E_FAILED_TO_REGISTER_FOR_REMOTE_NOTIFICATIONS";
+NSString *const RCTErrorUnableToRequestPermissions10 = @"E_UNABLE_TO_REQUEST_PERMISSIONS";
+NSString *const RCTErrorRemoteNotificationRegistrationFailed10 = @"E_FAILED_TO_REGISTER_FOR_REMOTE_NOTIFICATIONS";
 
 @implementation RCTConvert (UILocalNotification)
 
@@ -135,28 +135,28 @@ RCT_EXPORT_MODULE()
 {
   [[NSNotificationCenter defaultCenter] addObserver:self
                                            selector:@selector(handleLocalNotificationReceived:)
-                                               name:RCTLocalNotificationReceived
+                                               name:RCTLocalNotificationReceived10
                                              object:nil];
   [[NSNotificationCenter defaultCenter] addObserver:self
                                            selector:@selector(handleNotificationResponseReceived:)
-                                               name:RCTNotificationResponseReceived
+                                               name:RCTNotificationResponseReceived10
                                              object:nil];
 
   [[NSNotificationCenter defaultCenter] addObserver:self
                                            selector:@selector(handleRemoteNotificationReceived:)
-                                               name:RCTRemoteNotificationReceived
+                                               name:RCTRemoteNotificationReceived10
                                              object:nil];
   [[NSNotificationCenter defaultCenter] addObserver:self
                                            selector:@selector(handleRemoteNotificationsRegistered:)
-                                               name:RCTRemoteNotificationsRegistered
+                                               name:RCTRemoteNotificationsRegistered10
                                              object:nil];
   [[NSNotificationCenter defaultCenter] addObserver:self
                                            selector:@selector(handleRemoteNotificationRegistrationError:)
-                                               name:RCTErrorRemoteNotificationRegistrationFailed
+                                               name:RCTErrorRemoteNotificationRegistrationFailed10
                                              object:nil];
   [[NSNotificationCenter defaultCenter] addObserver:self
                                            selector:@selector(handleRegisterUserNotificationSettings:)
-                                               name:RCTRegisterUserNotificationSettings
+                                               name:RCTRegisterUserNotificationSettings10
                                              object:nil];
 }
 
@@ -178,7 +178,7 @@ RCT_EXPORT_MODULE()
 {
   if ([UIApplication instancesRespondToSelector:@selector(registerForRemoteNotifications)]) {
     [[UIApplication sharedApplication] registerForRemoteNotifications];
-    [[NSNotificationCenter defaultCenter] postNotificationName:RCTRegisterUserNotificationSettings
+    [[NSNotificationCenter defaultCenter] postNotificationName:RCTRegisterUserNotificationSettings10
                                                         object:self
                                                       userInfo:@{@"notificationSettings": notificationSettings}];
   }
@@ -192,21 +192,21 @@ RCT_EXPORT_MODULE()
   for (NSUInteger i = 0; i < deviceTokenLength; i++) {
     [hexString appendFormat:@"%02x", bytes[i]];
   }
-  [[NSNotificationCenter defaultCenter] postNotificationName:RCTRemoteNotificationsRegistered
+  [[NSNotificationCenter defaultCenter] postNotificationName:RCTRemoteNotificationsRegistered10
                                                       object:self
                                                     userInfo:@{@"deviceToken" : [hexString copy]}];
 }
 
 + (void)didFailToRegisterForRemoteNotificationsWithError:(NSError *)error
 {
-  [[NSNotificationCenter defaultCenter] postNotificationName:RCTErrorRemoteNotificationRegistrationFailed
+  [[NSNotificationCenter defaultCenter] postNotificationName:RCTErrorRemoteNotificationRegistrationFailed10
                                                       object:self
                                                     userInfo:@{@"error": error}];
 }
 
 + (void)didReceiveRemoteNotification:(NSDictionary *)notification
 {
-  [[NSNotificationCenter defaultCenter] postNotificationName:RCTRemoteNotificationReceived
+  [[NSNotificationCenter defaultCenter] postNotificationName:RCTRemoteNotificationReceived10
                                                       object:self
                                                     userInfo:notification];
 }
@@ -225,7 +225,7 @@ RCT_EXPORT_MODULE()
 
 + (void)didReceiveLocalNotification:(UNNotification *)notification
 {
-  [[NSNotificationCenter defaultCenter] postNotificationName:RCTLocalNotificationReceived
+  [[NSNotificationCenter defaultCenter] postNotificationName:RCTLocalNotificationReceived10
                                                       object:self
                                                     userInfo:notification];
 }
@@ -237,7 +237,7 @@ RCT_EXPORT_MODULE()
 
 + (void)didReceiveNotificationResponse:(UNNotificationResponse *)response
 {
-  [[NSNotificationCenter defaultCenter] postNotificationName:RCTNotificationResponseReceived
+  [[NSNotificationCenter defaultCenter] postNotificationName:RCTNotificationResponseReceived10
                                                       object:self
                                                     userInfo:RCTFormatNotificationResponse(response)];
 }
@@ -309,7 +309,7 @@ RCT_EXPORT_METHOD(requestPermissions:(NSDictionary *)permissions
                  rejecter:(RCTPromiseRejectBlock)reject)
 {
   if (RCTRunningInAppExtension()) {
-    reject(RCTErrorUnableToRequestPermissions, nil, RCTErrorWithMessage(@"Requesting push notifications is currently unavailable in an app extension"));
+    reject(RCTErrorUnableToRequestPermissions10, nil, RCTErrorWithMessage(@"Requesting push notifications is currently unavailable in an app extension"));
     return;
   }
 
