@@ -52,6 +52,13 @@ export type PushNotificationEventName = $Enum<{
         registrationError: string,
 }>;
 
+export type ActionOption = $Enum<{
+    none: string,
+    authenticationRequired: string,
+    destructive: string,
+    foreground: string
+}>;
+
 /**
  * Handle push notifications for your app, including permission handling and
  * icon badge number.
@@ -338,6 +345,15 @@ class PushNotificationIOS10 {
     static getInitialNotification(): Promise<?PushNotificationIOS> {
         return RCTPushNotificationManager.getInitialNotification().then(notification => {
             return notification && new PushNotificationIOS(notification);
+        });
+    }
+
+    /**
+     * This method adds actions to categories.
+     */
+    static setNotificationCategories(categories: Array<Object>, callback: Function) {
+        return RCTPushNotificationManager.setNotificationCategories(categories).then(response => {
+            callback(response);
         });
     }
 

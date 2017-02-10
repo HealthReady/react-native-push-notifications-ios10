@@ -235,7 +235,7 @@ RCT_EXPORT_MODULE()
   [self sendEventWithName:@"localNotificationReceived" body:notification.request.content.userInfo];
 }
 
-+ (void)didReceiveNotificationResponse:(UNNotificationResponse *)response
++ (void)didReceiveNotificationResponse:(UNNotificationResponse *)response :(SEL)completionHandler
 {
   [[NSNotificationCenter defaultCenter] postNotificationName:RCTNotificationResponseReceived10
                                                       object:self
@@ -286,6 +286,50 @@ RCT_EXPORT_MODULE()
 
   _requestPermissionsResolveBlock(notificationTypes);
   _requestPermissionsResolveBlock = nil;
+}
+
+/**
+ * Add categories to UNUserNotificationCenter
+ */
+RCT_EXPORT_METHOD(setNotificationCategories:(NSArray *)categories:(RCTPromiseResolveBlock)resolve
+                  reject:(__unused RCTPromiseRejectBlock)reject)
+{
+  NSError *error;
+  UNUserNotificationCenter *center = [UNUserNotificationCenter currentNotificationCenter];
+  NSArray *newCategories = [NSArray array];
+  for (id category in categories) {
+    NSArray *newCategoryIntentIdentifiers = [NSArray array];
+    NSArray *newActions = [NSArray array];
+    UNNotificationCategoryOptions *categoryOption = UNNotificationCategoryOptionNone;
+    if ([category[@"options"] isEqualToString:@"customDismissAction"]) {
+      categoryOption = UNNotificationCategoryOptionCustomDismissAction;
+    } else if ([category[@"options"] isEqualToString:@"allowInCarPlay"]) {
+      categoryOption = UNNotificationCategoryOptionAllowInCarPlay;
+    }
+    for (id action in category[@"actions"]) {
+      NSArray *newActionIntentIdentifiers = [NSArray array];
+      if (action[@"identifier"] && action[@"title"] && action[@"options"]) {
+        UNNotificationActionOptions *actionOption = UNNotificationActionOptionNone;
+        if ([action[@"options"] isEqualToString:@"destructive"]) {
+          actionOption = UNNotificationActionOptionDestructive;
+        } else if ([action[@"options"] isEqualToString:@"foreground"]) {
+          actionOption = UNNotificationActionOptionForeground;
+        } else if ([action[@"options"] isEqualToString:@"authenticationRequired"]) {
+          actionOption = UNNotificationActionOptionAuthenticationRequired;
+        }
+        UNNotificationAction *newAction = [UNNotificationAction actionWithIdentifier:action[@"identifier"]
+                                                                                title:action[@"title"] options:actionOption];
+        newActions = [newActions arrayByAddingObject:newAction];
+        newActionIntentIdentifiers = [newActionIntentIdentifiers arrayByAddingObject:action[@"identifier"]];
+      }
+    }
+    newCategories = [newCategories arrayByAddingObject:[UNNotificationCategory categoryWithIdentifier:category[@"identifier"]
+                                                                                              actions:newActions intentIdentifiers:newCategoryIntentIdentifiers
+                                                                                              options:categoryOption]];
+  }
+  NSSet *categoriesSet = [NSSet setWithArray:newCategories];
+  [center setNotificationCategories:categoriesSet];
+  resolve(@"setNotificationCategories successful");
 }
 
 /**
