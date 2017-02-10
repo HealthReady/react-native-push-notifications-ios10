@@ -46,7 +46,7 @@ NSString *const RCTErrorRemoteNotificationRegistrationFailed10 = @"E_FAILED_TO_R
 {
   NSError *error;
   NSDictionary<NSString *, id> *details = [self NSDictionary:json];
-  UNMutableNotificationContent *content = [[UNMutableNotificationContent alloc] init];
+  UNMutableNotificationContent *content = [UNMutableNotificationContent new];
   content.title = [RCTConvert NSString:details[@"alertTitle"]];
   content.body = [RCTConvert NSString:details[@"alertBody"]];
   //content.sound = [RCTConvert NSString:details[@"soundName"]] ?: UILocalNotificationDefaultSoundName;
@@ -67,13 +67,6 @@ NSString *const RCTErrorRemoteNotificationRegistrationFailed10 = @"E_FAILED_TO_R
                                                             options:nil
                                                               error:&error];
   }
-  int count;
-  NSArray *directoryContent = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:[NSString stringWithFormat:@"%@/images", documentsDirectory] error:NULL];
-  for (count = 0; count < (int)[directoryContent count]; count++)
-  {
-    NSLog(@"File %d: %@", (count + 1), [directoryContent objectAtIndex:count]);
-  }
-  
   if (attachment) {
     content.attachments=@[attachment];
     content.attachments = [NSArray arrayWithObject:attachment];
@@ -211,18 +204,6 @@ RCT_EXPORT_MODULE()
                                                     userInfo:notification];
 }
 
-//+ (void)didReceiveLocalNotification:(UILocalNotification *)notification
-//{
-//  [[NSNotificationCenter defaultCenter] postNotificationName:RCTLocalNotificationReceived
-//                                                      object:self
-//                                                    userInfo:RCTFormatLocalNotification(notification)];
-//}
-//
-//- (void)handleLocalNotificationReceived:(NSNotification *)notification
-//{
-//  [self sendEventWithName:@"localNotificationReceived" body:notification.userInfo];
-//}
-
 + (void)didReceiveLocalNotification:(UNNotification *)notification
 {
   [[NSNotificationCenter defaultCenter] postNotificationName:RCTLocalNotificationReceived10
@@ -230,9 +211,9 @@ RCT_EXPORT_MODULE()
                                                     userInfo:notification];
 }
 
-- (void)handleLocalNotificationReceived:(UNNotification *)notification
+- (void)handleLocalNotificationReceived:(NSNotification *)notification
 {
-  [self sendEventWithName:@"localNotificationReceived" body:notification.request.content.userInfo];
+  [self sendEventWithName:@"localNotificationReceived" body:notification.userInfo];
 }
 
 + (void)didReceiveNotificationResponse:(UNNotificationResponse *)response :(SEL)completionHandler
@@ -294,42 +275,46 @@ RCT_EXPORT_MODULE()
 RCT_EXPORT_METHOD(setNotificationCategories:(NSArray *)categories:(RCTPromiseResolveBlock)resolve
                   reject:(__unused RCTPromiseRejectBlock)reject)
 {
-  NSError *error;
-  UNUserNotificationCenter *center = [UNUserNotificationCenter currentNotificationCenter];
-  NSArray *newCategories = [NSArray array];
-  for (id category in categories) {
-    NSArray *newCategoryIntentIdentifiers = [NSArray array];
-    NSArray *newActions = [NSArray array];
-    UNNotificationCategoryOptions *categoryOption = UNNotificationCategoryOptionNone;
-    if ([category[@"options"] isEqualToString:@"customDismissAction"]) {
-      categoryOption = UNNotificationCategoryOptionCustomDismissAction;
-    } else if ([category[@"options"] isEqualToString:@"allowInCarPlay"]) {
-      categoryOption = UNNotificationCategoryOptionAllowInCarPlay;
-    }
-    for (id action in category[@"actions"]) {
-      NSArray *newActionIntentIdentifiers = [NSArray array];
-      if (action[@"identifier"] && action[@"title"] && action[@"options"]) {
-        UNNotificationActionOptions *actionOption = UNNotificationActionOptionNone;
-        if ([action[@"options"] isEqualToString:@"destructive"]) {
-          actionOption = UNNotificationActionOptionDestructive;
-        } else if ([action[@"options"] isEqualToString:@"foreground"]) {
-          actionOption = UNNotificationActionOptionForeground;
-        } else if ([action[@"options"] isEqualToString:@"authenticationRequired"]) {
-          actionOption = UNNotificationActionOptionAuthenticationRequired;
-        }
-        UNNotificationAction *newAction = [UNNotificationAction actionWithIdentifier:action[@"identifier"]
-                                                                                title:action[@"title"] options:actionOption];
-        newActions = [newActions arrayByAddingObject:newAction];
-        newActionIntentIdentifiers = [newActionIntentIdentifiers arrayByAddingObject:action[@"identifier"]];
+  if(SYSTEM_VERSION_GREATERTHAN_OR_EQUALTO(@"10.0")) {
+    NSError *error;
+    UNUserNotificationCenter *center = [UNUserNotificationCenter currentNotificationCenter];
+    NSArray *newCategories = [NSArray array];
+    for (id category in categories) {
+      NSArray *newCategoryIntentIdentifiers = [NSArray array];
+      NSArray *newActions = [NSArray array];
+      UNNotificationCategoryOptions *categoryOption = UNNotificationCategoryOptionNone;
+      if ([category[@"options"] isEqualToString:@"customDismissAction"]) {
+        categoryOption = UNNotificationCategoryOptionCustomDismissAction;
+      } else if ([category[@"options"] isEqualToString:@"allowInCarPlay"]) {
+        categoryOption = UNNotificationCategoryOptionAllowInCarPlay;
       }
+      for (id action in category[@"actions"]) {
+        NSArray *newActionIntentIdentifiers = [NSArray array];
+        if (action[@"identifier"] && action[@"title"] && action[@"options"]) {
+          UNNotificationActionOptions *actionOption = UNNotificationActionOptionNone;
+          if ([action[@"options"] isEqualToString:@"destructive"]) {
+            actionOption = UNNotificationActionOptionDestructive;
+          } else if ([action[@"options"] isEqualToString:@"foreground"]) {
+            actionOption = UNNotificationActionOptionForeground;
+          } else if ([action[@"options"] isEqualToString:@"authenticationRequired"]) {
+            actionOption = UNNotificationActionOptionAuthenticationRequired;
+          }
+          UNNotificationAction *newAction = [UNNotificationAction actionWithIdentifier:action[@"identifier"]
+                                                                                 title:action[@"title"] options:actionOption];
+          newActions = [newActions arrayByAddingObject:newAction];
+          newActionIntentIdentifiers = [newActionIntentIdentifiers arrayByAddingObject:action[@"identifier"]];
+        }
+      }
+      newCategories = [newCategories arrayByAddingObject:[UNNotificationCategory categoryWithIdentifier:category[@"identifier"]
+                                                                                                actions:newActions intentIdentifiers:newCategoryIntentIdentifiers
+                                                                                                options:categoryOption]];
     }
-    newCategories = [newCategories arrayByAddingObject:[UNNotificationCategory categoryWithIdentifier:category[@"identifier"]
-                                                                                              actions:newActions intentIdentifiers:newCategoryIntentIdentifiers
-                                                                                              options:categoryOption]];
+    NSSet *categoriesSet = [NSSet setWithArray:newCategories];
+    [center setNotificationCategories:categoriesSet];
+    resolve(@"setNotificationCategories successful");
+  } else {
+    
   }
-  NSSet *categoriesSet = [NSSet setWithArray:newCategories];
-  [center setNotificationCategories:categoriesSet];
-  resolve(@"setNotificationCategories successful");
 }
 
 /**
@@ -414,33 +399,37 @@ RCT_EXPORT_METHOD(presentLocalNotification:(UILocalNotification *)notification)
   [RCTSharedApplication() presentLocalNotificationNow:notification];
 }
 
-RCT_EXPORT_METHOD(scheduleLocalNotification:(UNNotificationContent *)notification fireDate:(nonnull NSNumber *)fireDate)
+RCT_EXPORT_METHOD(scheduleLocalNotification:(NSDictionary *)notification fireDate:(nonnull NSNumber *)fireDate)
 {
-  UNUserNotificationCenter *center = [UNUserNotificationCenter currentNotificationCenter];
-  NSError *error = nil;
-  NSString *identifier = @"UYLLocalNotification";
-  NSTimeInterval seconds = [fireDate doubleValue];
-  NSDate *date = [[NSDate alloc] initWithTimeIntervalSince1970:seconds];
-  NSDateComponents *triggerDate = [[NSCalendar currentCalendar]
-                                   components:NSCalendarUnitYear +
-                                   NSCalendarUnitMonth + NSCalendarUnitDay +
-                                   NSCalendarUnitHour + NSCalendarUnitMinute +
-                                   NSCalendarUnitSecond fromDate:date];
-  
-  UNCalendarNotificationTrigger *trigger = [UNCalendarNotificationTrigger triggerWithDateMatchingComponents: triggerDate
-                                                                                                    repeats:NO];
-  UNNotificationRequest *request = [UNNotificationRequest requestWithIdentifier:identifier
-                                                                        content:notification trigger:trigger];
-  [center addNotificationRequest:request withCompletionHandler:^(NSError * _Nullable error) {
-    if (error != nil) {
-      NSLog(@"Something went wrong: %@",error);
-    }else{
-      //NSLog(@"Notification scheduled %@", notification);
-      NSLog(@"Notification scheduled");
-    }
-  }];
-  
-//  [RCTSharedApplication() scheduleLocalNotification:notification];
+  if(SYSTEM_VERSION_GREATERTHAN_OR_EQUALTO(@"10.0")) {
+    UNNotificationContent *localNotification = [RCTConvert UNNotificationContent:notification];
+    UNUserNotificationCenter *center = [UNUserNotificationCenter currentNotificationCenter];
+    NSError *error = nil;
+    NSString *identifier = @"UYLLocalNotification";
+    NSTimeInterval seconds = [fireDate doubleValue];
+    NSDate *date = [[NSDate alloc] initWithTimeIntervalSince1970:seconds];
+    NSDateComponents *triggerDate = [[NSCalendar currentCalendar]
+                                     components:NSCalendarUnitYear +
+                                     NSCalendarUnitMonth + NSCalendarUnitDay +
+                                     NSCalendarUnitHour + NSCalendarUnitMinute +
+                                     NSCalendarUnitSecond fromDate:date];
+    
+    UNCalendarNotificationTrigger *trigger = [UNCalendarNotificationTrigger triggerWithDateMatchingComponents: triggerDate
+                                                                                                      repeats:NO];
+    UNNotificationRequest *request = [UNNotificationRequest requestWithIdentifier:identifier
+                                                                          content:localNotification trigger:trigger];
+    [center addNotificationRequest:request withCompletionHandler:^(NSError * _Nullable error) {
+      if (error != nil) {
+        NSLog(@"Something went wrong: %@",error);
+      }else{
+        //NSLog(@"Notification scheduled %@", notification);
+        NSLog(@"Notification scheduled");
+      }
+    }];
+  } else {
+    UILocalNotification *localNotification = [RCTConvert UILocalNotification:notification];
+    [RCTSharedApplication() scheduleLocalNotification:localNotification];
+  }
 }
 
 RCT_EXPORT_METHOD(cancelAllLocalNotifications)
