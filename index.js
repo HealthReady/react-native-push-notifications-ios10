@@ -145,7 +145,7 @@ class PushNotificationIOS10 {
      * - `applicationIconBadgeNumber` (optional) : The number to display as the app's icon badge. Setting the number to 0 removes the icon badge.
      */
     static scheduleLocalNotification(details: Object) {
-        RCTPushNotificationManager.scheduleLocalNotification(details, details.fireDate);
+        RCTPushNotificationManager.scheduleLocalNotification(details);
     }
 
     /**

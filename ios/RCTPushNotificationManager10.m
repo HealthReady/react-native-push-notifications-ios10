@@ -40,9 +40,9 @@ NSString *const RCTErrorRemoteNotificationRegistrationFailed10 = @"E_FAILED_TO_R
 }
 @end
 
-@implementation RCTConvert (UNNotificationContent)
+@implementation RCTConvert (UNNotificationRequest)
 
-+ (UNNotificationContent *)UNNotificationContent:(id)json
++ (UNNotificationRequest *)UNNotificationRequest:(id)json
 {
   NSError *error;
   NSDictionary<NSString *, id> *details = [self NSDictionary:json];
@@ -73,8 +73,14 @@ NSString *const RCTErrorRemoteNotificationRegistrationFailed10 = @"E_FAILED_TO_R
   }
   content.categoryIdentifier = [RCTConvert NSString:details[@"category"]];
   content.userInfo = [RCTConvert NSDictionary:details[@"userInfo"]];
-  
-  return content;
+  NSDateComponents *triggerDate = [[NSCalendar currentCalendar]
+                                   components:NSCalendarUnitYear +
+                                   NSCalendarUnitMonth + NSCalendarUnitDay +
+                                   NSCalendarUnitHour + NSCalendarUnitMinute +
+                                   NSCalendarUnitSecond fromDate:[RCTConvert NSDate:details[@"fireDate"]]];
+  UNCalendarNotificationTrigger *trigger = [UNCalendarNotificationTrigger triggerWithDateMatchingComponents:triggerDate repeats:NO];
+  UNNotificationRequest *request = [UNNotificationRequest requestWithIdentifier:@"notificationID" content:content trigger:trigger];
+  return request;
 }
 @end
 
@@ -204,11 +210,11 @@ RCT_EXPORT_MODULE()
                                                     userInfo:notification];
 }
 
-+ (void)didReceiveLocalNotification:(UNNotification *)notification
++ (void)didReceiveLocalNotification:(UILocalNotification *)notification
 {
   [[NSNotificationCenter defaultCenter] postNotificationName:RCTLocalNotificationReceived10
                                                       object:self
-                                                    userInfo:notification];
+                                                    userInfo:RCTFormatLocalNotification(notification)];
 }
 
 - (void)handleLocalNotificationReceived:(NSNotification *)notification
@@ -216,7 +222,7 @@ RCT_EXPORT_MODULE()
   [self sendEventWithName:@"localNotificationReceived" body:notification.userInfo];
 }
 
-+ (void)didReceiveNotificationResponse:(UNNotificationResponse *)response :(SEL)completionHandler
++ (void)didReceiveNotificationResponse:(UNNotificationResponse *)response
 {
   [[NSNotificationCenter defaultCenter] postNotificationName:RCTNotificationResponseReceived10
                                                       object:self
@@ -399,25 +405,11 @@ RCT_EXPORT_METHOD(presentLocalNotification:(UILocalNotification *)notification)
   [RCTSharedApplication() presentLocalNotificationNow:notification];
 }
 
-RCT_EXPORT_METHOD(scheduleLocalNotification:(NSDictionary *)notification fireDate:(nonnull NSNumber *)fireDate)
+RCT_EXPORT_METHOD(scheduleLocalNotification:(NSDictionary *)notification)
 {
   if(SYSTEM_VERSION_GREATERTHAN_OR_EQUALTO(@"10.0")) {
-    UNNotificationContent *localNotification = [RCTConvert UNNotificationContent:notification];
     UNUserNotificationCenter *center = [UNUserNotificationCenter currentNotificationCenter];
-    NSError *error = nil;
-    NSString *identifier = @"UYLLocalNotification";
-    NSTimeInterval seconds = [fireDate doubleValue];
-    NSDate *date = [[NSDate alloc] initWithTimeIntervalSince1970:seconds];
-    NSDateComponents *triggerDate = [[NSCalendar currentCalendar]
-                                     components:NSCalendarUnitYear +
-                                     NSCalendarUnitMonth + NSCalendarUnitDay +
-                                     NSCalendarUnitHour + NSCalendarUnitMinute +
-                                     NSCalendarUnitSecond fromDate:date];
-    
-    UNCalendarNotificationTrigger *trigger = [UNCalendarNotificationTrigger triggerWithDateMatchingComponents: triggerDate
-                                                                                                      repeats:NO];
-    UNNotificationRequest *request = [UNNotificationRequest requestWithIdentifier:identifier
-                                                                          content:localNotification trigger:trigger];
+    UNNotificationRequest *request = [RCTConvert UNNotificationRequest:notification];
     [center addNotificationRequest:request withCompletionHandler:^(NSError * _Nullable error) {
       if (error != nil) {
         NSLog(@"Something went wrong: %@",error);
