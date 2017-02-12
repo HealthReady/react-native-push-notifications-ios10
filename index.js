@@ -28,36 +28,82 @@ const DEVICE_LOCAL_RESPONSE_EVENT = 'notificationResponseReceived';
 /**
  * An event emitted by PushNotificationIOS.
  */
-export type PushNotificationEventName = $Enum<{
-    /**
-     * Fired when a remote notification is received. The handler will be invoked
-     * with an instance of `PushNotificationIOS`.
-     */
+export
+type
+PushNotificationEventName = $Enum < {
+        /**
+         * Fired when a remote notification is received. The handler will be invoked
+         * with an instance of `PushNotificationIOS`.
+         */
         notification: string,
-    /**
-     * Fired when a local notification is received. The handler will be invoked
-     * with an instance of `PushNotificationIOS`.
-     */
+        /**
+         * Fired when a local notification is received. The handler will be invoked
+         * with an instance of `PushNotificationIOS`.
+         */
         localNotification: string,
-    /**
-     * Fired when the user registers for remote notifications. The handler will be
-     * invoked with a hex string representing the deviceToken.
-     */
+        /**
+         * Fired when the user registers for remote notifications. The handler will be
+         * invoked with a hex string representing the deviceToken.
+         */
         register: string,
-    /**
-     * Fired when the user fails to register for remote notifications. Typically
-     * occurs when APNS is having issues, or the device is a simulator. The
-     * handler will be invoked with {message: string, code: number, details: any}.
-     */
+        /**
+         * Fired when the user fails to register for remote notifications. Typically
+         * occurs when APNS is having issues, or the device is a simulator. The
+         * handler will be invoked with {message: string, code: number, details: any}.
+         */
         registrationError: string,
-}>;
+    } >;
 
-export type ActionOption = $Enum<{
-    none: string,
-    authenticationRequired: string,
-    destructive: string,
-    foreground: string
-}>;
+export type ActionOption = $Enum < {
+        none: string,
+        authenticationRequired: string,
+        destructive: string,
+        foreground: string
+    } >;
+
+class PushNotificationIOS10Response {
+    _data: Object;
+    _actionIdentifier: string;
+    _body: string;
+    _title: string;
+
+    constructor(response: Object) {
+        this._data = {};
+
+        this._data = response.userInfo;
+        this._actionIdentifier = response.actionIdentifier;
+        this._body = response.body;
+        this._title = response.title;
+    }
+
+    /**
+     * An alias for `getData` to get the notification's main message string
+     */
+    getData(): ?string | ?Object {
+        return this._data;
+    }
+
+    /**
+     * An alias for `getActionIdentifier` to get the action response identifier
+     */
+    getActionIdentifier(): ?string {
+        return this._actionIdentifier;
+    }
+
+    /**
+     * An alias for `getBody` to get the action response body text
+     */
+    getBody(): ?string {
+        return this._body;
+    }
+
+    /**
+     * An alias for `getTitle` to get the action response title text
+     */
+    getTitle(): ?string {
+        return this._title;
+    }
+}
 
 /**
  * Handle push notifications for your app, including permission handling and
@@ -227,8 +273,8 @@ class PushNotificationIOS10 {
         } else if (type === 'notificationResponse') {
             listener = PushNotificationEmitter.addListener(
                 DEVICE_LOCAL_RESPONSE_EVENT,
-                (notifData) => {
-                    handler(new PushNotificationIOS10(notifData));
+                (responseData) => {
+                    handler(new PushNotificationIOS10Response(responseData));
                 }
             );
         } else if (type === 'register') {
@@ -288,17 +334,17 @@ class PushNotificationIOS10 {
         alert?: boolean,
         badge?: boolean,
         sound?: boolean
-    }): Promise<{
+    }): Promise < {
         alert: boolean,
         badge: boolean,
         sound: boolean
-    }> {
+    } > {
         var requestedPermissions = {};
         if (permissions) {
             requestedPermissions = {
-                alert: !!permissions.alert,
-                badge: !!permissions.badge,
-                sound: !!permissions.sound
+            alert: !!permissions.alert,
+            badge: !!permissions.badge,
+            sound: !!permissions.sound
             };
         } else {
             requestedPermissions = {
@@ -342,7 +388,7 @@ class PushNotificationIOS10 {
      * This method returns a promise that resolves to either the notification
      * object if the app was launched by a push notification, or `null` otherwise.
      */
-    static getInitialNotification(): Promise<?PushNotificationIOS> {
+    static getInitialNotification(): Promise<?PushNotificationIOS10> {
         return RCTPushNotificationManager.getInitialNotification().then(notification => {
             return notification && new PushNotificationIOS(notification);
         });
@@ -391,7 +437,7 @@ class PushNotificationIOS10 {
     /**
      * An alias for `getAlert` to get the notification's main message string
      */
-    getMessage(): ?string | ?Object {
+    getMessage():?string | ?Object {
         // alias because "alert" is an ambiguous name
         return this._alert;
     }
@@ -399,28 +445,28 @@ class PushNotificationIOS10 {
     /**
      * Gets the sound string from the `aps` object
      */
-    getSound(): ?string {
+    getSound():?string {
         return this._sound;
     }
 
     /**
      * Gets the notification's main message from the `aps` object
      */
-    getAlert(): ?string | ?Object {
+    getAlert():?string | ?Object {
         return this._alert;
     }
 
     /**
      * Gets the badge count number from the `aps` object
      */
-    getBadgeCount(): ?number {
+    getBadgeCount():?number {
         return this._badgeCount;
     }
 
     /**
      * Gets the data object on the notif
      */
-    getData(): ?Object {
+    getData():?Object {
         return this._data;
     }
 }
