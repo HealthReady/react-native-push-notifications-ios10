@@ -49,7 +49,7 @@ NSString *const RCTErrorRemoteNotificationRegistrationFailed10 = @"E_FAILED_TO_R
   UNMutableNotificationContent *content = [UNMutableNotificationContent new];
   content.title = [RCTConvert NSString:details[@"alertTitle"]];
   content.body = [RCTConvert NSString:details[@"alertBody"]];
-  //content.sound = [RCTConvert NSString:details[@"soundName"]] ?: UILocalNotificationDefaultSoundName;
+  content.sound = [UNNotificationSound soundNamed:[RCTConvert NSString:details[@"soundName"]]] ?: [UNNotificationSound defaultSound];
   UNNotificationAttachment *attachment;
   NSString *imageName = [RCTConvert NSString:details[@"imageName"]];
   // Used to get Documents folder path

@@ -62,15 +62,15 @@ export type ActionOption = $Enum < {
     } >;
 
 class PushNotificationIOS10Response {
-    _data: Object;
+    _userInfo: Object;
     _actionIdentifier: string;
     _body: string;
     _title: string;
 
     constructor(response: Object) {
-        this._data = {};
+        this._userInfo = {};
 
-        this._data = response.userInfo;
+        this._userInfo = response.userInfo;
         this._actionIdentifier = response.actionIdentifier;
         this._body = response.body;
         this._title = response.title;
@@ -79,8 +79,8 @@ class PushNotificationIOS10Response {
     /**
      * An alias for `getData` to get the notification's main message string
      */
-    getData(): ?string | ?Object {
-        return this._data;
+    getUserInfo(): ?string | ?Object {
+        return this._userInfo;
     }
 
     /**
