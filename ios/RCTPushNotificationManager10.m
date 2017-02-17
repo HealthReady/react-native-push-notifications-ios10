@@ -173,6 +173,27 @@ RCT_EXPORT_MODULE()
            @"remoteNotificationRegistrationError"];
 }
 
++ (void)willPresentNotification:(UNNotification *)notification completionHandler:(void (^)(UNNotificationPresentationOptions options))completionHandler
+{
+  UIImage *attachmentImage = nil;
+  UNNotificationAttachment *attachment = notification.request.content.attachments.firstObject;
+  if (attachment) {
+    if ([attachment.URL startAccessingSecurityScopedResource]){
+      attachmentImage = [UIImage imageWithContentsOfFile:attachment.URL.path];
+      [attachment.URL stopAccessingSecurityScopedResource];
+    }
+  }
+  completionHandler(UNAuthorizationOptionSound | UNAuthorizationOptionAlert | UNAuthorizationOptionBadge);
+}
+
++ (void)didReceiveNotificationResponse:(UNNotificationResponse *)response completionHandler:(void (^)())completionHandler
+{
+  [[NSNotificationCenter defaultCenter] postNotificationName:RCTNotificationResponseReceived10
+                                                      object:self
+                                                    userInfo:RCTFormatNotificationResponse(response)];
+  completionHandler();
+}
+                                                                                             
 + (void)didRegisterUserNotificationSettings:(__unused UIUserNotificationSettings *)notificationSettings
 {
   if ([UIApplication instancesRespondToSelector:@selector(registerForRemoteNotifications)]) {
@@ -222,13 +243,6 @@ RCT_EXPORT_MODULE()
   [self sendEventWithName:@"localNotificationReceived" body:notification.userInfo];
 }
 
-+ (void)didReceiveNotificationResponse:(UNNotificationResponse *)response
-{
-  [[NSNotificationCenter defaultCenter] postNotificationName:RCTNotificationResponseReceived10
-                                                      object:self
-                                                    userInfo:RCTFormatNotificationResponse(response)];
-}
-
 - (void)handleNotificationResponseReceived:(NSNotification *)response
 {
   NSLog(@"response %@", response);
@@ -263,14 +277,13 @@ RCT_EXPORT_MODULE()
   if (_requestPermissionsResolveBlock == nil) {
     return;
   }
-
+  NSDictionary *notificationTypes;
   UIUserNotificationSettings *notificationSettings = notification.userInfo[@"notificationSettings"];
-  NSDictionary *notificationTypes = @{
-    @"alert": @((notificationSettings.types & UIUserNotificationTypeAlert) > 0),
-    @"sound": @((notificationSettings.types & UIUserNotificationTypeSound) > 0),
-    @"badge": @((notificationSettings.types & UIUserNotificationTypeBadge) > 0),
-  };
-
+    notificationTypes = @{
+                          @"alert": @((notificationSettings.types & UIUserNotificationTypeAlert) > 0),
+                          @"sound": @((notificationSettings.types & UIUserNotificationTypeSound) > 0),
+                          @"badge": @((notificationSettings.types & UIUserNotificationTypeBadge) > 0),
+                          };
   _requestPermissionsResolveBlock(notificationTypes);
   _requestPermissionsResolveBlock = nil;
 }
@@ -355,34 +368,81 @@ RCT_EXPORT_METHOD(requestPermissions:(NSDictionary *)permissions
 
   _requestPermissionsResolveBlock = resolve;
 
-  UIUserNotificationType types = UIUserNotificationTypeNone;
-  if (permissions) {
-    if ([RCTConvert BOOL:permissions[@"alert"]]) {
-      types |= UIUserNotificationTypeAlert;
+  if(SYSTEM_VERSION_GREATERTHAN_OR_EQUALTO(@"10.0")) {
+    UNAuthorizationOptions types = UNAuthorizationOptionNone;
+    UNUserNotificationCenter *center = [UNUserNotificationCenter currentNotificationCenter];
+    center.delegate = self;
+    if (permissions) {
+      if ([RCTConvert BOOL:permissions[@"alert"]]) {
+        types += UNAuthorizationOptionAlert;
+      }
+      if ([RCTConvert BOOL:permissions[@"badge"]]) {
+        types += UNAuthorizationOptionBadge;
+      }
+      if ([RCTConvert BOOL:permissions[@"sound"]]) {
+        types += UNAuthorizationOptionSound;
+      }
+      if ([RCTConvert BOOL:permissions[@"carPlay"]]) {
+        types += UNAuthorizationOptionCarPlay;
+      }
+    } else {
+      types = (UNAuthorizationOptionAlert + UNAuthorizationOptionBadge + UNAuthorizationOptionSound + UNAuthorizationOptionCarPlay);
     }
-    if ([RCTConvert BOOL:permissions[@"badge"]]) {
-      types |= UIUserNotificationTypeBadge;
-    }
-    if ([RCTConvert BOOL:permissions[@"sound"]]) {
-      types |= UIUserNotificationTypeSound;
-    }
-  } else {
-    types = UIUserNotificationTypeAlert | UIUserNotificationTypeBadge | UIUserNotificationTypeSound;
-  }
 
-  UIApplication *app = RCTSharedApplication();
-  if ([app respondsToSelector:@selector(registerUserNotificationSettings:)]) {
-    UIUserNotificationSettings *notificationSettings =
-      [UIUserNotificationSettings settingsForTypes:(NSUInteger)types categories:nil];
-    [app registerUserNotificationSettings:notificationSettings];
+    [center requestAuthorizationWithOptions:types completionHandler:^(BOOL granted, NSError * _Nullable error){
+      if(!error) {
+        [center getNotificationSettingsWithCompletionHandler:^(UNNotificationSettings *settings) {
+          NSDictionary *notificationTypes = @{
+                                              @"alert": @(settings.alertSetting > 0),
+                                              @"sound": @(settings.soundSetting > 0),
+                                              @"badge": @(settings.badgeSetting > 0),
+                                              @"carPlay": @(settings.carPlaySetting > 0),
+                                              };
+          _requestPermissionsResolveBlock(notificationTypes);
+          _requestPermissionsResolveBlock = nil;
+        }];
+      }
+    }];
   } else {
-    [app registerForRemoteNotificationTypes:(NSUInteger)types];
+    UIUserNotificationType types = UIUserNotificationTypeNone;
+    if (permissions) {
+      if ([RCTConvert BOOL:permissions[@"alert"]]) {
+        types |= UIUserNotificationTypeAlert;
+      }
+      if ([RCTConvert BOOL:permissions[@"badge"]]) {
+        types |= UIUserNotificationTypeBadge;
+      }
+      if ([RCTConvert BOOL:permissions[@"sound"]]) {
+        types |= UIUserNotificationTypeSound;
+      }
+    } else {
+      types = UIUserNotificationTypeAlert | UIUserNotificationTypeBadge | UIUserNotificationTypeSound;
+    }
+    
+    UIApplication *app = RCTSharedApplication();
+    if ([app respondsToSelector:@selector(registerUserNotificationSettings:)]) {
+      UIUserNotificationSettings *notificationSettings =
+      [UIUserNotificationSettings settingsForTypes:(NSUInteger)types categories:nil];
+      [app registerUserNotificationSettings:notificationSettings];
+    } else {
+      [app registerForRemoteNotificationTypes:(NSUInteger)types];
+    }
   }
 }
 
 RCT_EXPORT_METHOD(abandonPermissions)
 {
-  [RCTSharedApplication() unregisterForRemoteNotifications];
+  if(SYSTEM_VERSION_GREATERTHAN_OR_EQUALTO(@"10.0")) {
+    UNAuthorizationOptions types = UNAuthorizationOptionNone;
+    UNUserNotificationCenter *center = [UNUserNotificationCenter currentNotificationCenter];
+    [center requestAuthorizationWithOptions:types completionHandler:^(BOOL granted, NSError * _Nullable error){
+      if(!error){
+        NSLog(@"App notification authorization abandoned");
+      }
+    }];
+  } else {
+    [RCTSharedApplication() unregisterForRemoteNotifications];
+  }
 }
 
 RCT_EXPORT_METHOD(checkPermissions:(RCTResponseSenderBlock)callback)
@@ -391,13 +451,24 @@ RCT_EXPORT_METHOD(checkPermissions:(RCTResponseSenderBlock)callback)
     callback(@[@{@"alert": @NO, @"badge": @NO, @"sound": @NO}]);
     return;
   }
-
-  NSUInteger types = [RCTSharedApplication() currentUserNotificationSettings].types;
-  callback(@[@{
-    @"alert": @((types & UIUserNotificationTypeAlert) > 0),
-    @"badge": @((types & UIUserNotificationTypeBadge) > 0),
-    @"sound": @((types & UIUserNotificationTypeSound) > 0),
-  }]);
+  
+  if(SYSTEM_VERSION_GREATERTHAN_OR_EQUALTO(@"10.0")) {
+    UNUserNotificationCenter *center = [UNUserNotificationCenter currentNotificationCenter];
+    [center getNotificationSettingsWithCompletionHandler:^(UNNotificationSettings *settings) {
+      callback(@[@{
+                   @"alert": @((settings.alertSetting) > 0),
+                   @"badge": @((settings.badgeSetting) > 0),
+                   @"sound": @((settings.soundSetting) > 0),
+                   }]);
+    }];
+  } else {
+    NSUInteger types = [RCTSharedApplication() currentUserNotificationSettings].types;
+    callback(@[@{
+                 @"alert": @((types & UIUserNotificationTypeAlert) > 0),
+                 @"badge": @((types & UIUserNotificationTypeBadge) > 0),
+                 @"sound": @((types & UIUserNotificationTypeSound) > 0),
+                 }]);
+  }
 }
 
 RCT_EXPORT_METHOD(presentLocalNotification:(UILocalNotification *)notification)

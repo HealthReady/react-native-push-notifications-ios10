@@ -333,24 +333,28 @@ class PushNotificationIOS10 {
     static requestPermissions(permissions?: {
         alert?: boolean,
         badge?: boolean,
-        sound?: boolean
+        sound?: boolean,
+        carPlay?: boolean
     }): Promise < {
         alert: boolean,
         badge: boolean,
-        sound: boolean
+        sound: boolean,
+        carPlay: boolean
     } > {
         var requestedPermissions = {};
         if (permissions) {
             requestedPermissions = {
             alert: !!permissions.alert,
             badge: !!permissions.badge,
-            sound: !!permissions.sound
+            sound: !!permissions.sound,
+            carPlay: !!permissions.carPlay
             };
         } else {
             requestedPermissions = {
                 alert: true,
                 badge: true,
-                sound: true
+                sound: true,
+                carPlay: true
             };
         }
         return RCTPushNotificationManager.requestPermissions(requestedPermissions);
@@ -411,7 +415,6 @@ class PushNotificationIOS10 {
     constructor(nativeNotif: Object) {
         this._data = {};
 
-        console.log('this is the notif:', nativeNotif);
         if (nativeNotif.remote) {
             // Extract data from Apple's `aps` dict as defined:
             // https://developer.apple.com/library/ios/documentation/NetworkingInternet/Conceptual/RemoteNotificationsPG/Chapters/ApplePushService.html

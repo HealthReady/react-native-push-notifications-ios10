@@ -9,11 +9,12 @@
 
 @interface RCTPushNotificationManager10 : RCTEventEmitter
 
++ (void)willPresentNotification:(UNNotification *)notification completionHandler:(void (^)(UNNotificationPresentationOptions options))completionHandler;
++ (void)didReceiveNotificationResponse:(UNNotificationResponse *)response completionHandler:(void (^)())completionhandler;
 + (void)didRegisterUserNotificationSettings:(UIUserNotificationSettings *)notificationSettings;
 + (void)didRegisterForRemoteNotificationsWithDeviceToken:(NSData *)deviceToken;
 + (void)didReceiveRemoteNotification:(NSDictionary *)notification;
 + (void)didFailToRegisterForRemoteNotificationsWithError:(NSError *)error;
-+ (void)didReceiveLocalNotification:(UNNotification *)notification;
-+ (void)didReceiveNotificationResponse:(UNNotificationResponse *)response;
++ (void)didReceiveLocalNotification:(UILocalNotification *)notification;
 
 @end
