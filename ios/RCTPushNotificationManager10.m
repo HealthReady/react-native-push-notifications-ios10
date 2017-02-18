@@ -150,7 +150,16 @@ static NSDictionary *RCTFormatNotificationRequest(UNNotificationRequest *request
     }
     formattedNotificationRequest[@"launchImageName"] = request.content.launchImageName;
     formattedNotificationRequest[@"userInfo"] = RCTNullIfNil(RCTJSONClean(request.content.userInfo));
-    formattedNotificationRequest[@"attachments"] = request.content.attachments;
+    if (request.content.attachments){
+      NSMutableArray *attachments = [NSMutableArray new];
+      for (UNNotificationAttachment *attachment in request.content.attachments){
+        [attachments addObject:@{
+                                 @"identifier": attachment.identifier,
+                                 @"URL": [attachment.URL absoluteString]
+                                       }];
+      }
+      formattedNotificationRequest[@"attachments"] = attachments;
+    }
     formattedNotificationRequest[@"category"] = RCTNullIfNil(request.content.categoryIdentifier);
   }
   formattedNotificationRequest[@"identifier"] = request.identifier;
