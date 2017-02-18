@@ -48,32 +48,42 @@ NSString *const RCTErrorRemoteNotificationRegistrationFailed10 = @"E_FAILED_TO_R
   NSDictionary<NSString *, id> *details = [self NSDictionary:json];
   UNMutableNotificationContent *content = [UNMutableNotificationContent new];
   content.title = [RCTConvert NSString:details[@"alertTitle"]];
+  content.subtitle = [RCTConvert NSString:details[@"alertSubtitle"]];
   content.body = [RCTConvert NSString:details[@"alertBody"]];
+  content.badge = [RCTConvert NSString:details[@"applicationIconBadgeNumber"]];
+  content.launchImageName = [RCTConvert NSString:details[@"launchImageName"]];
   content.sound = [UNNotificationSound soundNamed:[RCTConvert NSString:details[@"soundName"]]] ?: [UNNotificationSound defaultSound];
-  UNNotificationAttachment *attachment;
-  NSString *imageName = [RCTConvert NSString:details[@"imageName"]];
-  // Used to get Documents folder path
-  NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
-  NSString *documentsDirectory = [paths objectAtIndex:0];
-  NSString *imagePath = [NSString stringWithFormat:@"file://%@/images/%@", documentsDirectory, imageName];
-  NSURL *imageURL = [NSURL URLWithString:imagePath];
-  
-  if ( [[NSFileManager defaultManager] isReadableFileAtPath:imageURL] ){
-    NSString *tempImagePath = [NSString stringWithFormat:@"file://%@/images/temp_%@", documentsDirectory, imageName];
-    NSURL *tempImageURL = [NSURL URLWithString:tempImagePath];
-    [[NSFileManager defaultManager] copyItemAtURL:imageURL toURL:tempImageURL error:nil];
-    attachment=[UNNotificationAttachment attachmentWithIdentifier:@"imageID"
-                                                              URL: tempImageURL
-                                                          options:nil
-                                                            error:&error];
-  }
-  if (attachment) {
-    content.attachments=@[attachment];
-    content.attachments = [NSArray arrayWithObject:attachment];
+  NSArray *contentAttachments = [RCTConvert NSArray:details[@"attachments"]];
+  if (contentAttachments) {
+    NSMutableArray *attachments = [NSMutableArray new];
+    // Used to get Documents folder path
+    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+    NSString *documentsDirectory = [paths objectAtIndex:0];
+    for (id attachment in contentAttachments) {
+      if (attachment[@"filename"]){
+        UNNotificationAttachment *newAttachment;
+        //NSString *imageName = [RCTConvert NSString:details[@"imageName"]];
+        NSString *imagePath = [NSString stringWithFormat:@"file://%@/images/%@", documentsDirectory, attachment[@"filename"]];
+        NSURL *imageURL = [NSURL URLWithString:imagePath];
+        if ( [[NSFileManager defaultManager] isReadableFileAtPath:imageURL] ){
+          NSString *tempImagePath = [NSString stringWithFormat:@"file://%@/images/temp_%@", documentsDirectory, attachment[@"filename"]];
+          NSURL *tempImageURL = [NSURL URLWithString:tempImagePath];
+          [[NSFileManager defaultManager] copyItemAtURL:imageURL toURL:tempImageURL error:nil];
+          newAttachment = [UNNotificationAttachment attachmentWithIdentifier:attachment[@"id"]
+                                                                         URL: tempImageURL
+                                                                     options:nil
+                                                                       error:&error];
+        }
+        if (newAttachment) {
+          [attachments addObject:newAttachment];
+        }
+      }
+    }
+    content.attachments = [attachments copy];
   }
   content.categoryIdentifier = [RCTConvert NSString:details[@"category"]];
   content.userInfo = [RCTConvert NSDictionary:details[@"userInfo"]];
-  NSString *identifier = [RCTConvert NSString:content.userInfo[@"id"]];
+  NSString *identifier = [RCTConvert NSString:details[@"id"]];
   NSDateComponents *triggerDate = [[NSCalendar currentCalendar]
                                    components:NSCalendarUnitYear +
                                    NSCalendarUnitMonth + NSCalendarUnitDay +
@@ -336,7 +346,6 @@ RCT_EXPORT_METHOD(setNotificationCategories:(NSArray *)categories:(RCTPromiseRes
 {
   if(SYSTEM_VERSION_GREATERTHAN_OR_EQUALTO(@"10.0")) {
     NSError *error;
-    UNUserNotificationCenter *center = [UNUserNotificationCenter currentNotificationCenter];
     NSArray *newCategories = [NSArray array];
     for (id category in categories) {
       NSArray *newCategoryIntentIdentifiers = [NSArray array];
@@ -369,7 +378,7 @@ RCT_EXPORT_METHOD(setNotificationCategories:(NSArray *)categories:(RCTPromiseRes
                                                                                                 options:categoryOption]];
     }
     NSSet *categoriesSet = [NSSet setWithArray:newCategories];
-    [center setNotificationCategories:categoriesSet];
+    [[UNUserNotificationCenter currentNotificationCenter] setNotificationCategories:categoriesSet];
     resolve(@"setNotificationCategories successful");
   } else {
     
@@ -410,7 +419,6 @@ RCT_EXPORT_METHOD(requestPermissions:(NSDictionary *)permissions
   
   if(SYSTEM_VERSION_GREATERTHAN_OR_EQUALTO(@"10.0")) {
     UNAuthorizationOptions types = UNAuthorizationOptionNone;
-    UNUserNotificationCenter *center = [UNUserNotificationCenter currentNotificationCenter];
     if (permissions) {
       if ([RCTConvert BOOL:permissions[@"alert"]]) {
         types += UNAuthorizationOptionAlert;
@@ -428,9 +436,9 @@ RCT_EXPORT_METHOD(requestPermissions:(NSDictionary *)permissions
       types = (UNAuthorizationOptionAlert + UNAuthorizationOptionBadge + UNAuthorizationOptionSound + UNAuthorizationOptionCarPlay);
     }
     
-    [center requestAuthorizationWithOptions:types completionHandler:^(BOOL granted, NSError * _Nullable error){
+    [[UNUserNotificationCenter currentNotificationCenter] requestAuthorizationWithOptions:types completionHandler:^(BOOL granted, NSError * _Nullable error){
       if(!error) {
-        [center getNotificationSettingsWithCompletionHandler:^(UNNotificationSettings *settings) {
+        [[UNUserNotificationCenter currentNotificationCenter] getNotificationSettingsWithCompletionHandler:^(UNNotificationSettings *settings) {
           NSDictionary *notificationTypes = @{
                                               @"alert": @(settings.alertSetting > 0),
                                               @"sound": @(settings.soundSetting > 0),
@@ -472,8 +480,7 @@ RCT_EXPORT_METHOD(abandonPermissions)
 {
   if(SYSTEM_VERSION_GREATERTHAN_OR_EQUALTO(@"10.0")) {
     UNAuthorizationOptions types = UNAuthorizationOptionNone;
-    UNUserNotificationCenter *center = [UNUserNotificationCenter currentNotificationCenter];
-    [center requestAuthorizationWithOptions:types completionHandler:^(BOOL granted, NSError * _Nullable error){
+    [[UNUserNotificationCenter currentNotificationCenter] requestAuthorizationWithOptions:types completionHandler:^(BOOL granted, NSError * _Nullable error){
       if(!error){
         NSLog(@"App notification authorization abandoned");
       }
@@ -491,8 +498,7 @@ RCT_EXPORT_METHOD(checkPermissions:(RCTResponseSenderBlock)callback)
   }
   
   if(SYSTEM_VERSION_GREATERTHAN_OR_EQUALTO(@"10.0")) {
-    UNUserNotificationCenter *center = [UNUserNotificationCenter currentNotificationCenter];
-    [center getNotificationSettingsWithCompletionHandler:^(UNNotificationSettings *settings) {
+    [[UNUserNotificationCenter currentNotificationCenter] getNotificationSettingsWithCompletionHandler:^(UNNotificationSettings *settings) {
       callback(@[@{
                    @"alert": @((settings.alertSetting) > 0),
                    @"badge": @((settings.badgeSetting) > 0),
@@ -517,9 +523,8 @@ RCT_EXPORT_METHOD(presentLocalNotification:(UILocalNotification *)notification)
 RCT_EXPORT_METHOD(scheduleLocalNotification:(NSDictionary *)notification)
 {
   if(SYSTEM_VERSION_GREATERTHAN_OR_EQUALTO(@"10.0")) {
-    UNUserNotificationCenter *center = [UNUserNotificationCenter currentNotificationCenter];
     UNNotificationRequest *request = [RCTConvert UNNotificationRequest:notification];
-    [center addNotificationRequest:request withCompletionHandler:^(NSError * _Nullable error) {
+    [[UNUserNotificationCenter currentNotificationCenter] addNotificationRequest:request withCompletionHandler:^(NSError * _Nullable error) {
       if (error != nil) {
         NSLog(@"Something went wrong: %@",error);
       }else{
