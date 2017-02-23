@@ -7,10 +7,10 @@
 #import <Foundation/Foundation.h>
 #import "RCTPushNotificationManager10.h"
 
-#import "RCTBridge.h"
-#import "RCTConvert.h"
-#import "RCTEventDispatcher.h"
-#import "RCTUtils.h"
+#import <React/RCTBridge.h>
+#import <React/RCTConvert.h>
+#import <React/RCTEventDispatcher.h>
+#import <React/RCTUtils.h>
 
 NSString *const RCTLocalNotificationReceived10 = @"LocalNotificationReceived";
 NSString *const RCTNotificationResponseReceived10 = @"NotificationResponseReceived";

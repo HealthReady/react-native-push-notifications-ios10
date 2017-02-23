@@ -3,7 +3,7 @@
  *
  */
 
-#import "RCTEventEmitter.h"
+#import <React/RCTEventEmitter.h>
 #import <UserNotifications/UserNotifications.h>
 
 #define SYSTEM_VERSION_GREATERTHAN_OR_EQUALTO(v)  ([[[UIDevice currentDevice] systemVersion] compare:v options:NSNumericSearch] != NSOrderedAscending)
