@@ -455,6 +455,7 @@ RCT_EXPORT_METHOD(requestPermissions:(NSDictionary *)permissions
                                               @"carPlay": @(settings.carPlaySetting > 0),
                                               };
           _requestPermissionsResolveBlock(notificationTypes);
+          _requestPermissionsResolveBlock = nil;
         }];
       }
     }];
