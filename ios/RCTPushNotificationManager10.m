@@ -66,7 +66,7 @@ NSString *const RCTErrorRemoteNotificationRegistrationFailed10 = @"E_FAILED_TO_R
         NSString *imagePath = [NSString stringWithFormat:@"file://%@/images/%@", documentsDirectory, attachment[@"filename"]];
         NSURL *imageURL = [NSURL URLWithString:imagePath];
         if ( [[NSFileManager defaultManager] isReadableFileAtPath:imageURL] ){
-          NSString *tempImagePath = [NSString stringWithFormat:@"file://%@/images/temp_%@", documentsDirectory, attachment[@"filename"]];
+          NSString *tempImagePath = [NSString stringWithFormat:@"file://%@/images/temp_%@_%@", documentsDirectory, attachment[@"id"], attachment[@"filename"]];
           NSURL *tempImageURL = [NSURL URLWithString:tempImagePath];
           [[NSFileManager defaultManager] copyItemAtURL:imageURL toURL:tempImageURL error:nil];
           newAttachment = [UNNotificationAttachment attachmentWithIdentifier:attachment[@"id"]
