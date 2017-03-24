@@ -29,37 +29,37 @@ const DEVICE_LOCAL_RESPONSE_EVENT = 'notificationResponseReceived';
  * An event emitted by PushNotificationIOS.
  */
 export
-type
-PushNotificationEventName = $Enum < {
-        /**
-         * Fired when a remote notification is received. The handler will be invoked
-         * with an instance of `PushNotificationIOS`.
-         */
+    type
+    PushNotificationEventName = $Enum < {
+    /**
+     * Fired when a remote notification is received. The handler will be invoked
+     * with an instance of `PushNotificationIOS`.
+     */
         notification: string,
-        /**
-         * Fired when a local notification is received. The handler will be invoked
-         * with an instance of `PushNotificationIOS`.
-         */
+    /**
+     * Fired when a local notification is received. The handler will be invoked
+     * with an instance of `PushNotificationIOS`.
+     */
         localNotification: string,
-        /**
-         * Fired when the user registers for remote notifications. The handler will be
-         * invoked with a hex string representing the deviceToken.
-         */
+    /**
+     * Fired when the user registers for remote notifications. The handler will be
+     * invoked with a hex string representing the deviceToken.
+     */
         register: string,
-        /**
-         * Fired when the user fails to register for remote notifications. Typically
-         * occurs when APNS is having issues, or the device is a simulator. The
-         * handler will be invoked with {message: string, code: number, details: any}.
-         */
+    /**
+     * Fired when the user fails to register for remote notifications. Typically
+     * occurs when APNS is having issues, or the device is a simulator. The
+     * handler will be invoked with {message: string, code: number, details: any}.
+     */
         registrationError: string,
-    } >;
+} >;
 
 export type ActionOption = $Enum < {
-        none: string,
-        authenticationRequired: string,
-        destructive: string,
-        foreground: string
-    } >;
+    none: string,
+    authenticationRequired: string,
+    destructive: string,
+    foreground: string
+} >;
 
 class PushNotificationIOS10Response {
     _userInfo: Object;
@@ -234,6 +234,29 @@ class PushNotificationIOS10 {
     }
 
     /**
+     * Gets the notifications that have been currently delivered.
+     */
+    static getDeliveredNotifications(callback: Function) {
+        RCTPushNotificationManager.getDeliveredNotifications(callback);
+    }
+
+    /**
+     * Remove delivered notifications matching an id.
+     *
+     * A `userInfo` object is required with an `id` field to match the specified notifications.
+     */
+    static removeDeliveredNotifications(userInfo: Object) {
+        RCTPushNotificationManager.removeDeliveredNotifications(userInfo);
+    }
+
+    /**
+     * Removes all delivered notifications.
+     */
+    static removeAllDeliveredNotifications() {
+        RCTPushNotificationManager.removeAllDeliveredNotifications();
+    }
+
+    /**
      * Attaches a listener to remote or local notification events while the app is running
      * in the foreground or the background.
      *
@@ -331,11 +354,11 @@ class PushNotificationIOS10 {
      * resolves to the current state of the permission.
      */
     static requestPermissions(permissions?: {
-        alert?: boolean,
-        badge?: boolean,
-        sound?: boolean,
-        carPlay?: boolean
-    }): Promise < {
+                                  alert?: boolean,
+                                  badge?: boolean,
+                                  sound?: boolean,
+                                  carPlay?: boolean
+                              }): Promise < {
         alert: boolean,
         badge: boolean,
         sound: boolean,
@@ -344,10 +367,10 @@ class PushNotificationIOS10 {
         var requestedPermissions = {};
         if (permissions) {
             requestedPermissions = {
-            alert: !!permissions.alert,
-            badge: !!permissions.badge,
-            sound: !!permissions.sound,
-            carPlay: !!permissions.carPlay
+                alert: !!permissions.alert,
+                badge: !!permissions.badge,
+                sound: !!permissions.sound,
+                carPlay: !!permissions.carPlay
             };
         } else {
             requestedPermissions = {

@@ -100,6 +100,18 @@ NSString *const RCTErrorRemoteNotificationRegistrationFailed10 = @"E_FAILED_TO_R
   RCTPromiseResolveBlock _requestPermissionsResolveBlock;
 }
 
+static NSDictionary *RCTFormatNotification(UNNotification *notification)
+{
+  NSMutableDictionary *formattedNotification = [NSMutableDictionary dictionary];
+  formattedNotification[@"request"] = RCTFormatNotificationRequest(notification.request);
+
+  NSDateFormatter *formatter = [NSDateFormatter new];
+  [formatter setDateFormat:@"yyyy-MM-dd'T'HH:mm:ss.SSSZZZZZ"];
+  formattedNotification[@"date"] = [formatter stringFromDate:notification.date];
+
+  return formattedNotification;
+}
+
 static NSDictionary *RCTFormatLocalNotification(UILocalNotification *notification)
 {
   NSMutableDictionary *formattedLocalNotification = [NSMutableDictionary dictionary];
@@ -199,7 +211,7 @@ RCT_EXPORT_MODULE()
                                            selector:@selector(handleNotificationResponseReceived:)
                                                name:RCTNotificationResponseReceived10
                                              object:nil];
-  
+
   [[NSNotificationCenter defaultCenter] addObserver:self
                                            selector:@selector(handleRemoteNotificationReceived:)
                                                name:RCTRemoteNotificationReceived10
@@ -390,7 +402,7 @@ RCT_EXPORT_METHOD(setNotificationCategories:(NSArray *)categories:(RCTPromiseRes
     [[UNUserNotificationCenter currentNotificationCenter] setNotificationCategories:categoriesSet];
     resolve(@"setNotificationCategories successful");
   } else {
-    
+
   }
 }
 
@@ -418,14 +430,14 @@ RCT_EXPORT_METHOD(requestPermissions:(NSDictionary *)permissions
     reject(RCTErrorUnableToRequestPermissions10, nil, RCTErrorWithMessage(@"Requesting push notifications is currently unavailable in an app extension"));
     return;
   }
-  
+
   if (_requestPermissionsResolveBlock != nil) {
     RCTLogError(@"Cannot call requestPermissions twice before the first has returned.");
     return;
   }
-  
+
   _requestPermissionsResolveBlock = resolve;
-  
+
   if(SYSTEM_VERSION_GREATERTHAN_OR_EQUALTO(@"10.0")) {
     UNAuthorizationOptions types = UNAuthorizationOptionNone;
     if (permissions) {
@@ -444,7 +456,7 @@ RCT_EXPORT_METHOD(requestPermissions:(NSDictionary *)permissions
     } else {
       types = (UNAuthorizationOptionAlert + UNAuthorizationOptionBadge + UNAuthorizationOptionSound + UNAuthorizationOptionCarPlay);
     }
-    
+
     [[UNUserNotificationCenter currentNotificationCenter] requestAuthorizationWithOptions:types completionHandler:^(BOOL granted, NSError * _Nullable error){
       if(!error) {
         [[UNUserNotificationCenter currentNotificationCenter] getNotificationSettingsWithCompletionHandler:^(UNNotificationSettings *settings) {
@@ -474,7 +486,7 @@ RCT_EXPORT_METHOD(requestPermissions:(NSDictionary *)permissions
     } else {
       types = UIUserNotificationTypeAlert | UIUserNotificationTypeBadge | UIUserNotificationTypeSound;
     }
-    
+
     UIApplication *app = RCTSharedApplication();
     if ([app respondsToSelector:@selector(registerUserNotificationSettings:)]) {
       UIUserNotificationSettings *notificationSettings =
@@ -506,7 +518,7 @@ RCT_EXPORT_METHOD(checkPermissions:(RCTResponseSenderBlock)callback)
     callback(@[@{@"alert": @NO, @"badge": @NO, @"sound": @NO}]);
     return;
   }
-  
+
   if(SYSTEM_VERSION_GREATERTHAN_OR_EQUALTO(@"10.0")) {
     [[UNUserNotificationCenter currentNotificationCenter] getNotificationSettingsWithCompletionHandler:^(UNNotificationSettings *settings) {
       callback(@[@{
@@ -587,10 +599,10 @@ RCT_EXPORT_METHOD(getInitialNotification:(RCTPromiseResolveBlock)resolve
 {
   NSMutableDictionary<NSString *, id> *initialNotification =
   [self.bridge.launchOptions[UIApplicationLaunchOptionsRemoteNotificationKey] mutableCopy];
-  
+
   UILocalNotification *initialLocalNotification =
   self.bridge.launchOptions[UIApplicationLaunchOptionsLocalNotificationKey];
-  
+
   if (initialNotification) {
     initialNotification[@"remote"] = @YES;
     resolve(initialNotification);
@@ -618,6 +630,35 @@ RCT_EXPORT_METHOD(getScheduledLocalNotifications:(RCTResponseSenderBlock)callbac
       [formattedScheduledLocalNotifications addObject:RCTFormatLocalNotification(notification)];
     }
     callback(@[formattedScheduledLocalNotifications]);
+  }
+}
+
+RCT_EXPORT_METHOD(getDeliveredNotifications:(RCTResponseSenderBlock)callback)
+{
+  if (SYSTEM_VERSION_GREATERTHAN_OR_EQUALTO(@"10.0")) {
+    [[UNUserNotificationCenter currentNotificationCenter] getDeliveredNotificationsWithCompletionHandler:^(NSArray<UNNotification *> * _Nonnull notifications) {
+      NSMutableArray<NSDictionary *> *formattedNotifications = [NSMutableArray new];
+      for (UNNotification *notification in notifications) {
+        [formattedNotifications addObject:RCTFormatNotification(notification)];
+      }
+      callback(@[formattedNotifications]);
+    }] ;
+  } else {
+    callback(@[]);
+  }
+}
+
+RCT_EXPORT_METHOD(removeDeliveredNotifications:(NSDictionary<NSString *, id> *)userInfo)
+{
+  if(SYSTEM_VERSION_GREATERTHAN_OR_EQUALTO(@"10.0")) {
+    [[UNUserNotificationCenter currentNotificationCenter] removeDeliveredNotificationsWithIdentifiers:@[userInfo[@"id"]]];
+  }
+}
+
+RCT_EXPORT_METHOD(removeAllDeliveredNotifications)
+{
+  if (SYSTEM_VERSION_GREATERTHAN_OR_EQUALTO(@"10.0")) {
+    [[UNUserNotificationCenter currentNotificationCenter] removeAllDeliveredNotifications];
   }
 }
 
