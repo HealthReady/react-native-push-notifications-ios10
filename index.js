@@ -422,6 +422,24 @@ class PushNotificationIOS10 {
     }
 
     /**
+     *  This method returns a promise that resolves to either the notification
+     *  response object if the app was launched by a notification response, or `null` otherwise.
+     */
+    static getInitialNotificationResponse(): Promise<?PushNotificationIOS10Response> {
+        return RCTPushNotificationManager.getInitialNotificationResponse().then(responseData => {
+            return responseData && new PushNotificationIOS10Response(responseData);
+        })
+    }
+
+    /**
+     * This method returns a promise that resolves to whether the devices supports content extensions or not.
+     * @returns {Promise.<?boolean>}
+     */
+    static getContentExtensionSupport(): Promise<boolean> {
+        return RCTPushNotificationManager.getContentExtensionSupport();
+    }
+
+    /**
      * This method adds actions to categories.
      */
     static setNotificationCategories(categories: Array<Object>, callback: Function) {

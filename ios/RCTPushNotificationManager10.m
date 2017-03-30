@@ -100,6 +100,26 @@ NSString *const RCTErrorRemoteNotificationRegistrationFailed10 = @"E_FAILED_TO_R
   RCTPromiseResolveBlock _requestPermissionsResolveBlock;
 }
 
+static UNNotificationResponse *_launchResponse = nil;
+static BOOL _isObserving = NO;
+
++ (UNNotificationResponse *)launchResponse
+{
+  return _launchResponse;
+}
++ (void)setLaunchResponse:(UNNotificationResponse *)launchResponse
+{
+  _launchResponse = launchResponse;
+}
++ (BOOL)isObserving
+{
+  return _isObserving;
+}
++ (void)setIsObserving:(BOOL)isObserving
+{
+  _isObserving = isObserving;
+}
+
 static NSDictionary *RCTFormatNotification(UNNotification *notification)
 {
   NSMutableDictionary *formattedNotification = [NSMutableDictionary dictionary];
@@ -228,11 +248,14 @@ RCT_EXPORT_MODULE()
                                            selector:@selector(handleRegisterUserNotificationSettings:)
                                                name:RCTRegisterUserNotificationSettings10
                                              object:nil];
+  RCTPushNotificationManager10.isObserving = YES;
 }
 
 - (void)stopObserving
 {
   [[NSNotificationCenter defaultCenter] removeObserver:self];
+  RCTPushNotificationManager10.isObserving = NO;
+  RCTPushNotificationManager10.launchResponse = nil;
 }
 
 - (NSArray<NSString *> *)supportedEvents
@@ -259,6 +282,9 @@ RCT_EXPORT_MODULE()
 
 + (void)didReceiveNotificationResponse:(UNNotificationResponse *)response completionHandler:(void (^)())completionHandler
 {
+  if (!RCTPushNotificationManager10.isObserving) {
+    RCTPushNotificationManager10.launchResponse = response;
+  }
   [[NSNotificationCenter defaultCenter] postNotificationName:RCTNotificationResponseReceived10
                                                       object:self
                                                     userInfo:RCTFormatNotificationResponse(response)];
@@ -594,6 +620,21 @@ RCT_EXPORT_METHOD(cancelLocalNotifications:(NSDictionary<NSString *, id> *)userI
   }
 }
 
+RCT_EXPORT_METHOD(getInitialNotificationResponse:(RCTPromiseResolveBlock)resolve
+                  reject:(__unused RCTPromiseRejectBlock)reject)
+{
+  if(SYSTEM_VERSION_GREATERTHAN_OR_EQUALTO(@"10.0")) {
+    UNNotificationResponse *initialNotificationResponse = RCTPushNotificationManager10.launchResponse;
+    if (initialNotificationResponse) {
+      resolve(RCTFormatNotificationResponse(initialNotificationResponse));
+    } else {
+      resolve((id)kCFNull);
+    }
+  } else {
+    resolve((id)kCFNull);
+  }
+}
+
 RCT_EXPORT_METHOD(getInitialNotification:(RCTPromiseResolveBlock)resolve
                   reject:(__unused RCTPromiseRejectBlock)reject)
 {
@@ -659,6 +700,17 @@ RCT_EXPORT_METHOD(removeAllDeliveredNotifications)
 {
   if (SYSTEM_VERSION_GREATERTHAN_OR_EQUALTO(@"10.0")) {
     [[UNUserNotificationCenter currentNotificationCenter] removeAllDeliveredNotifications];
+  }
+}
+
+RCT_EXPORT_METHOD(getContentExtensionSupport:(RCTPromiseResolveBlock)resolve
+                  reject:(__unused RCTPromiseRejectBlock)reject)
+{
+  if (SYSTEM_VERSION_GREATERTHAN_OR_EQUALTO(@"10.0")) {
+    BOOL isSupported = [UNUserNotificationCenter currentNotificationCenter].supportsContentExtensions;
+    resolve([NSNumber numberWithBool:isSupported]);
+  } else {
+    resolve([NSNumber numberWithBool:NO]);
   }
 }
 
