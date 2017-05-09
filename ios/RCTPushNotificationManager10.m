@@ -52,7 +52,10 @@ NSString *const RCTErrorRemoteNotificationRegistrationFailed10 = @"E_FAILED_TO_R
   content.body = [RCTConvert NSString:details[@"alertBody"]];
   content.badge = [RCTConvert NSString:details[@"applicationIconBadgeNumber"]];
   content.launchImageName = [RCTConvert NSString:details[@"launchImageName"]];
-  content.sound = [UNNotificationSound soundNamed:[RCTConvert NSString:details[@"soundName"]]] ?: [UNNotificationSound defaultSound];
+  NSString *sound = [RCTConvert NSString:details[@"soundName"]];
+  if (![sound isEqualToString:@"none"]) {
+    content.sound = [UNNotificationSound soundNamed:sound] ?: [UNNotificationSound defaultSound];
+  }
   NSArray *contentAttachments = [RCTConvert NSArray:details[@"attachments"]];
   if (contentAttachments) {
     NSMutableArray *attachments = [NSMutableArray new];
