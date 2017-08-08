@@ -60,22 +60,31 @@ NSString *const RCTErrorRemoteNotificationRegistrationFailed10 = @"E_FAILED_TO_R
   if (contentAttachments) {
     NSMutableArray *attachments = [NSMutableArray new];
     // Used to get Documents folder path
+    
     NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
     NSString *documentsDirectory = [paths objectAtIndex:0];
+    NSString *documentsImageDirectory = [documentsDirectory stringByAppendingString:@"/images"];
+    
+    NSFileManager *fileManager = [NSFileManager defaultManager];
+    NSString *tmpSubFolderName = [[NSUUID new] UUIDString];
+    NSURL *tmpSubFolderURL = [NSURL fileURLWithPath:[NSTemporaryDirectory() stringByAppendingPathComponent:tmpSubFolderName] isDirectory:true];
+    [fileManager createDirectoryAtURL:tmpSubFolderURL withIntermediateDirectories:false attributes:NULL error:&error];
+    
     for (id attachment in contentAttachments) {
       if (attachment[@"filename"]){
         UNNotificationAttachment *newAttachment;
-        //NSString *imageName = [RCTConvert NSString:details[@"imageName"]];
-        NSString *imagePath = [NSString stringWithFormat:@"file://%@/images/%@", documentsDirectory, attachment[@"filename"]];
-        NSURL *imageURL = [NSURL URLWithString:imagePath];
-        if ( [[NSFileManager defaultManager] isReadableFileAtPath:imageURL] ){
-          NSString *tempImagePath = [NSString stringWithFormat:@"file://%@/images/temp_%@_%@", documentsDirectory, attachment[@"id"], attachment[@"filename"]];
-          NSURL *tempImageURL = [NSURL URLWithString:tempImagePath];
-          [[NSFileManager defaultManager] copyItemAtURL:imageURL toURL:tempImageURL error:nil];
+        NSString *imageFileIdentifier = [[NSUUID new] UUIDString];
+        NSString *tmpFileName = [imageFileIdentifier stringByAppendingString:@".png"];
+        NSURL *tmpFileURL = [tmpSubFolderURL URLByAppendingPathComponent:tmpFileName];
+        NSString *imagePath = [NSString stringWithFormat:@"%@/%@", documentsImageDirectory, attachment[@"filename"]];
+        
+        if ([fileManager isReadableFileAtPath:imagePath]) {
+          NSData *imageData = UIImagePNGRepresentation([UIImage imageWithContentsOfFile:imagePath]);
+          [imageData writeToURL:tmpFileURL atomically:true];
           newAttachment = [UNNotificationAttachment attachmentWithIdentifier:attachment[@"id"]
-                                                                         URL: tempImageURL
-                                                                     options:nil
-                                                                       error:&error];
+                                                                               URL:tmpFileURL
+                                                                           options:nil
+                                                                             error:&error];
         }
         if (newAttachment) {
           [attachments addObject:newAttachment];
