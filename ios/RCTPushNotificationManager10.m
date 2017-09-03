@@ -52,27 +52,39 @@ NSString *const RCTErrorRemoteNotificationRegistrationFailed10 = @"E_FAILED_TO_R
   content.body = [RCTConvert NSString:details[@"alertBody"]];
   content.badge = [RCTConvert NSString:details[@"applicationIconBadgeNumber"]];
   content.launchImageName = [RCTConvert NSString:details[@"launchImageName"]];
-  content.sound = [UNNotificationSound soundNamed:[RCTConvert NSString:details[@"soundName"]]] ?: [UNNotificationSound defaultSound];
+  NSString *sound = [RCTConvert NSString:details[@"soundName"]];
+  if (![sound isEqualToString:@"none"]) {
+    content.sound = [UNNotificationSound soundNamed:sound] ?: [UNNotificationSound defaultSound];
+  }
   NSArray *contentAttachments = [RCTConvert NSArray:details[@"attachments"]];
   if (contentAttachments) {
     NSMutableArray *attachments = [NSMutableArray new];
     // Used to get Documents folder path
+    
     NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
     NSString *documentsDirectory = [paths objectAtIndex:0];
+    NSString *documentsImageDirectory = [documentsDirectory stringByAppendingString:@"/images"];
+    
+    NSFileManager *fileManager = [NSFileManager defaultManager];
+    NSString *tmpSubFolderName = [[NSUUID new] UUIDString];
+    NSURL *tmpSubFolderURL = [NSURL fileURLWithPath:[NSTemporaryDirectory() stringByAppendingPathComponent:tmpSubFolderName] isDirectory:true];
+    [fileManager createDirectoryAtURL:tmpSubFolderURL withIntermediateDirectories:false attributes:NULL error:&error];
+    
     for (id attachment in contentAttachments) {
       if (attachment[@"filename"]){
         UNNotificationAttachment *newAttachment;
-        //NSString *imageName = [RCTConvert NSString:details[@"imageName"]];
-        NSString *imagePath = [NSString stringWithFormat:@"file://%@/images/%@", documentsDirectory, attachment[@"filename"]];
-        NSURL *imageURL = [NSURL URLWithString:imagePath];
-        if ( [[NSFileManager defaultManager] isReadableFileAtPath:imageURL] ){
-          NSString *tempImagePath = [NSString stringWithFormat:@"file://%@/images/temp_%@", documentsDirectory, attachment[@"filename"]];
-          NSURL *tempImageURL = [NSURL URLWithString:tempImagePath];
-          [[NSFileManager defaultManager] copyItemAtURL:imageURL toURL:tempImageURL error:nil];
+        NSString *imageFileIdentifier = [[NSUUID new] UUIDString];
+        NSString *tmpFileName = [imageFileIdentifier stringByAppendingString:@".png"];
+        NSURL *tmpFileURL = [tmpSubFolderURL URLByAppendingPathComponent:tmpFileName];
+        NSString *imagePath = [NSString stringWithFormat:@"%@/%@", documentsImageDirectory, attachment[@"filename"]];
+        
+        if ([fileManager isReadableFileAtPath:imagePath]) {
+          NSData *imageData = UIImagePNGRepresentation([UIImage imageWithContentsOfFile:imagePath]);
+          [imageData writeToURL:tmpFileURL atomically:true];
           newAttachment = [UNNotificationAttachment attachmentWithIdentifier:attachment[@"id"]
-                                                                         URL: tempImageURL
-                                                                     options:nil
-                                                                       error:&error];
+                                                                               URL:tmpFileURL
+                                                                           options:nil
+                                                                             error:&error];
         }
         if (newAttachment) {
           [attachments addObject:newAttachment];
@@ -98,6 +110,38 @@ NSString *const RCTErrorRemoteNotificationRegistrationFailed10 = @"E_FAILED_TO_R
 @implementation RCTPushNotificationManager10
 {
   RCTPromiseResolveBlock _requestPermissionsResolveBlock;
+}
+
+static UNNotificationResponse *_launchResponse = nil;
+static BOOL _isObserving = NO;
+
++ (UNNotificationResponse *)launchResponse
+{
+  return _launchResponse;
+}
++ (void)setLaunchResponse:(UNNotificationResponse *)launchResponse
+{
+  _launchResponse = launchResponse;
+}
++ (BOOL)isObserving
+{
+  return _isObserving;
+}
++ (void)setIsObserving:(BOOL)isObserving
+{
+  _isObserving = isObserving;
+}
+
+static NSDictionary *RCTFormatNotification(UNNotification *notification)
+{
+  NSMutableDictionary *formattedNotification = [NSMutableDictionary dictionary];
+  formattedNotification[@"request"] = RCTFormatNotificationRequest(notification.request);
+
+  NSDateFormatter *formatter = [NSDateFormatter new];
+  [formatter setDateFormat:@"yyyy-MM-dd'T'HH:mm:ss.SSSZZZZZ"];
+  formattedNotification[@"date"] = [formatter stringFromDate:notification.date];
+
+  return formattedNotification;
 }
 
 static NSDictionary *RCTFormatLocalNotification(UILocalNotification *notification)
@@ -199,7 +243,7 @@ RCT_EXPORT_MODULE()
                                            selector:@selector(handleNotificationResponseReceived:)
                                                name:RCTNotificationResponseReceived10
                                              object:nil];
-  
+
   [[NSNotificationCenter defaultCenter] addObserver:self
                                            selector:@selector(handleRemoteNotificationReceived:)
                                                name:RCTRemoteNotificationReceived10
@@ -216,11 +260,14 @@ RCT_EXPORT_MODULE()
                                            selector:@selector(handleRegisterUserNotificationSettings:)
                                                name:RCTRegisterUserNotificationSettings10
                                              object:nil];
+  RCTPushNotificationManager10.isObserving = YES;
 }
 
 - (void)stopObserving
 {
   [[NSNotificationCenter defaultCenter] removeObserver:self];
+  RCTPushNotificationManager10.isObserving = NO;
+  RCTPushNotificationManager10.launchResponse = nil;
 }
 
 - (NSArray<NSString *> *)supportedEvents
@@ -247,6 +294,9 @@ RCT_EXPORT_MODULE()
 
 + (void)didReceiveNotificationResponse:(UNNotificationResponse *)response completionHandler:(void (^)())completionHandler
 {
+  if (!RCTPushNotificationManager10.isObserving) {
+    RCTPushNotificationManager10.launchResponse = response;
+  }
   [[NSNotificationCenter defaultCenter] postNotificationName:RCTNotificationResponseReceived10
                                                       object:self
                                                     userInfo:RCTFormatNotificationResponse(response)];
@@ -390,7 +440,7 @@ RCT_EXPORT_METHOD(setNotificationCategories:(NSArray *)categories:(RCTPromiseRes
     [[UNUserNotificationCenter currentNotificationCenter] setNotificationCategories:categoriesSet];
     resolve(@"setNotificationCategories successful");
   } else {
-    
+
   }
 }
 
@@ -418,14 +468,14 @@ RCT_EXPORT_METHOD(requestPermissions:(NSDictionary *)permissions
     reject(RCTErrorUnableToRequestPermissions10, nil, RCTErrorWithMessage(@"Requesting push notifications is currently unavailable in an app extension"));
     return;
   }
-  
+
   if (_requestPermissionsResolveBlock != nil) {
     RCTLogError(@"Cannot call requestPermissions twice before the first has returned.");
     return;
   }
-  
+
   _requestPermissionsResolveBlock = resolve;
-  
+
   if(SYSTEM_VERSION_GREATERTHAN_OR_EQUALTO(@"10.0")) {
     UNAuthorizationOptions types = UNAuthorizationOptionNone;
     if (permissions) {
@@ -444,7 +494,7 @@ RCT_EXPORT_METHOD(requestPermissions:(NSDictionary *)permissions
     } else {
       types = (UNAuthorizationOptionAlert + UNAuthorizationOptionBadge + UNAuthorizationOptionSound + UNAuthorizationOptionCarPlay);
     }
-    
+
     [[UNUserNotificationCenter currentNotificationCenter] requestAuthorizationWithOptions:types completionHandler:^(BOOL granted, NSError * _Nullable error){
       if(!error) {
         [[UNUserNotificationCenter currentNotificationCenter] getNotificationSettingsWithCompletionHandler:^(UNNotificationSettings *settings) {
@@ -455,6 +505,7 @@ RCT_EXPORT_METHOD(requestPermissions:(NSDictionary *)permissions
                                               @"carPlay": @(settings.carPlaySetting > 0),
                                               };
           _requestPermissionsResolveBlock(notificationTypes);
+          _requestPermissionsResolveBlock = nil;
         }];
       }
     }];
@@ -473,7 +524,7 @@ RCT_EXPORT_METHOD(requestPermissions:(NSDictionary *)permissions
     } else {
       types = UIUserNotificationTypeAlert | UIUserNotificationTypeBadge | UIUserNotificationTypeSound;
     }
-    
+
     UIApplication *app = RCTSharedApplication();
     if ([app respondsToSelector:@selector(registerUserNotificationSettings:)]) {
       UIUserNotificationSettings *notificationSettings =
@@ -505,7 +556,7 @@ RCT_EXPORT_METHOD(checkPermissions:(RCTResponseSenderBlock)callback)
     callback(@[@{@"alert": @NO, @"badge": @NO, @"sound": @NO}]);
     return;
   }
-  
+
   if(SYSTEM_VERSION_GREATERTHAN_OR_EQUALTO(@"10.0")) {
     [[UNUserNotificationCenter currentNotificationCenter] getNotificationSettingsWithCompletionHandler:^(UNNotificationSettings *settings) {
       callback(@[@{
@@ -581,15 +632,30 @@ RCT_EXPORT_METHOD(cancelLocalNotifications:(NSDictionary<NSString *, id> *)userI
   }
 }
 
+RCT_EXPORT_METHOD(getInitialNotificationResponse:(RCTPromiseResolveBlock)resolve
+                  reject:(__unused RCTPromiseRejectBlock)reject)
+{
+  if(SYSTEM_VERSION_GREATERTHAN_OR_EQUALTO(@"10.0")) {
+    UNNotificationResponse *initialNotificationResponse = RCTPushNotificationManager10.launchResponse;
+    if (initialNotificationResponse) {
+      resolve(RCTFormatNotificationResponse(initialNotificationResponse));
+    } else {
+      resolve((id)kCFNull);
+    }
+  } else {
+    resolve((id)kCFNull);
+  }
+}
+
 RCT_EXPORT_METHOD(getInitialNotification:(RCTPromiseResolveBlock)resolve
                   reject:(__unused RCTPromiseRejectBlock)reject)
 {
   NSMutableDictionary<NSString *, id> *initialNotification =
   [self.bridge.launchOptions[UIApplicationLaunchOptionsRemoteNotificationKey] mutableCopy];
-  
+
   UILocalNotification *initialLocalNotification =
   self.bridge.launchOptions[UIApplicationLaunchOptionsLocalNotificationKey];
-  
+
   if (initialNotification) {
     initialNotification[@"remote"] = @YES;
     resolve(initialNotification);
@@ -617,6 +683,46 @@ RCT_EXPORT_METHOD(getScheduledLocalNotifications:(RCTResponseSenderBlock)callbac
       [formattedScheduledLocalNotifications addObject:RCTFormatLocalNotification(notification)];
     }
     callback(@[formattedScheduledLocalNotifications]);
+  }
+}
+
+RCT_EXPORT_METHOD(getDeliveredNotifications:(RCTResponseSenderBlock)callback)
+{
+  if (SYSTEM_VERSION_GREATERTHAN_OR_EQUALTO(@"10.0")) {
+    [[UNUserNotificationCenter currentNotificationCenter] getDeliveredNotificationsWithCompletionHandler:^(NSArray<UNNotification *> * _Nonnull notifications) {
+      NSMutableArray<NSDictionary *> *formattedNotifications = [NSMutableArray new];
+      for (UNNotification *notification in notifications) {
+        [formattedNotifications addObject:RCTFormatNotification(notification)];
+      }
+      callback(@[formattedNotifications]);
+    }] ;
+  } else {
+    callback(@[]);
+  }
+}
+
+RCT_EXPORT_METHOD(removeDeliveredNotifications:(NSDictionary<NSString *, id> *)userInfo)
+{
+  if(SYSTEM_VERSION_GREATERTHAN_OR_EQUALTO(@"10.0")) {
+    [[UNUserNotificationCenter currentNotificationCenter] removeDeliveredNotificationsWithIdentifiers:@[userInfo[@"id"]]];
+  }
+}
+
+RCT_EXPORT_METHOD(removeAllDeliveredNotifications)
+{
+  if (SYSTEM_VERSION_GREATERTHAN_OR_EQUALTO(@"10.0")) {
+    [[UNUserNotificationCenter currentNotificationCenter] removeAllDeliveredNotifications];
+  }
+}
+
+RCT_EXPORT_METHOD(getContentExtensionSupport:(RCTPromiseResolveBlock)resolve
+                  reject:(__unused RCTPromiseRejectBlock)reject)
+{
+  if (SYSTEM_VERSION_GREATERTHAN_OR_EQUALTO(@"10.0")) {
+    BOOL isSupported = [UNUserNotificationCenter currentNotificationCenter].supportsContentExtensions;
+    resolve([NSNumber numberWithBool:isSupported]);
+  } else {
+    resolve([NSNumber numberWithBool:NO]);
   }
 }
 
